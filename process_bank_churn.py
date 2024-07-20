@@ -49,7 +49,7 @@ def encode_categorical_features(data: Dict[str, Any], categorical_cols: list) ->
         data[f'{split}_inputs'].drop(columns=categorical_cols, inplace=True)
     data['encoded_cols'] = encoded_cols
 
-def preprocess_data_train(raw_df: pd.DataFrame, scaler_numeric = False) -> Dict[str, Any]:
+def preprocess_data(raw_df: pd.DataFrame, scaler_numeric = False) -> Dict[str, Any]:
     """
     Обробляємо "сирі" дані
     """
