@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from typing import Dict, Any
@@ -8,7 +9,7 @@ def columns_to_drop(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     """
     Видаляємо стовпці, що не несуть інформаційного значення для подальшої роботи
     """
-    return df.drop(subset=columns, axis=1)
+    return df.drop(columns, axis=1)
 
 def split_data(df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     """
@@ -33,7 +34,7 @@ def scale_numeric_features(data: Dict[str, Any], numeric_cols: list) -> None:
     Маштабуємо числові ознаки
     """
     scaler = MinMaxScaler().fit(data['train_inputs'][numeric_cols])
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'val']:
         data[f'{split}_inputs'][numeric_cols] = scaler.transform(data[f'{split}_inputs'][numeric_cols])
 
 
@@ -43,9 +44,10 @@ def encode_categorical_features(data: Dict[str, Any], categorical_cols: list) ->
     """
     encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore').fit(data['train_inputs'][categorical_cols])
     encoded_cols = list(encoder.get_feature_names_out(categorical_cols))
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'val']:
         encoded = encoder.transform(data[f'{split}_inputs'][categorical_cols])
-        data[f'{split}_inputs'] = pd.concat([data[f'{split}_inputs'], pd.DataFrame(encoded, columns=encoded_cols, index=data[f'{split}_inputs'].index)], axis=1)
+        data[f'{split}_inputs'] = pd.concat([data[f'{split}_inputs'], pd.DataFrame(encoded, columns=encoded_cols, 
+                                                                                   index=data[f'{split}_inputs'].index)], axis=1)
         data[f'{split}_inputs'].drop(columns=categorical_cols, inplace=True)
     data['encoded_cols'] = encoded_cols
 
@@ -78,7 +80,42 @@ def preprocess_data(raw_df: pd.DataFrame, scaler_numeric = False) -> Dict[str, A
         'train_targets': data['train_targets'],
         'X_val': X_val,
         'val_targets': data['val_targets'],
-        'input_cols': input_cols,
-        'scaler': scaler,
-        'encoder': encoder
+        'input_cols': input_cols
     }
+
+
+def scale_new_numeric_features(data: Dict[str, Any], numeric_cols: list) -> None:
+    """
+    Маштабуємо числові ознаки
+    """
+    scaler = MinMaxScaler().fit(data[numeric_cols])
+    data[numeric_cols] = scaler.transform(data[numeric_cols])
+
+
+def encode_new_categorical_features(data: pd.DataFrame, categorical_cols: list) -> pd.DataFrame:
+    """
+    Кодує категоріальні дані
+    """
+    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore').fit(data[categorical_cols])
+    encoded_cols = list(encoder.get_feature_names_out(categorical_cols))
+    encoded_data = pd.DataFrame(encoder.transform(data[categorical_cols]), columns=encoded_cols)
+    return pd.concat([data, encoded_data], axis=1)
+    
+
+def preprocess_new_data(new_df: pd.DataFrame, scaler_numeric = False) -> Dict[str, Any]:
+    """
+    Обробляємо "сирі" дані
+    """
+    new_df = columns_to_drop(new_df, ['Surname', 'CustomerId'])
+    numeric_cols = new_df.select_dtypes(include=np.number).columns.tolist()
+    categorical_cols = new_df.select_dtypes('object').columns.tolist()
+    
+    if scaler_numeric:
+        scale_new_numeric_features(new_df, numeric_cols)
+    else:
+        pass
+        
+    new_df = encode_new_categorical_features(new_df, categorical_cols)
+    new_df = new_df.drop(columns=categorical_cols, axis=1)
+
+    return new_df
